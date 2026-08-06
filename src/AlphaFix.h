@@ -70,7 +70,18 @@ struct AlphaFixInstanceData {
     void*       ffmpegContext;
 };
 
-// DLL search path setup — call once during GlobalSetup
+// ── FFmpeg loading ───────────────────────────────────────────────────────────
+// AlphaFix_EnsureFFmpegLoaded is thread-safe and runs its work exactly once,
+// no matter how many threads call it. It installs delay-load hooks and then
+// explicitly loads every DLL found in the alphafix.ffmpeg sidecar folder by
+// absolute path, so resolution never depends on the process-wide DLL search
+// path (which other AE plugins routinely change out from under us).
+//
+// Returns true when FFmpeg is usable. When it returns false the effect passes
+// pixels through untouched instead of crashing.
+bool AlphaFix_EnsureFFmpegLoaded();
+
+// Retained for source compatibility. Just forwards to the function above.
 bool AlphaFix_LoadFFmpegDLLs();
 
 extern "C" {
