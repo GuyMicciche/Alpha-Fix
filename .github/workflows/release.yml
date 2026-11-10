@@ -63,6 +63,15 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: bash buildmac.sh --no-install --arch '${{ matrix.arch }}'
+      - name: Save Mac build diagnostics
+        if: failure() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mac-diagnostics-${{ matrix.arch }}
+          path: |
+            Mac/ffmpeg-*/ffmpeg-*/ffbuild/config.log
+            Mac/*/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
       - name: Package Windows
         if: runner.os == 'Windows'
         shell: pwsh

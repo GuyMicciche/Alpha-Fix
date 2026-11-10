@@ -6,6 +6,13 @@ VERSION=8.1
 ARCH="${ARCH:-$(uname -m)}"
 case "$ARCH" in arm64|x86_64) ;; *) echo "Unsupported ARCH: $ARCH" >&2; exit 1 ;; esac
 export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-12.0}"
+# Calling the compiler inside Xcode directly does not select the macOS SDK.
+# Give FFmpeg an explicit sysroot for its compiler checks and the library build.
+export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+CC_MAC="$(xcrun --sdk macosx --find clang)"
+[[ -d "$SDKROOT/usr/lib" ]] || { echo "Invalid macOS SDK: $SDKROOT" >&2; exit 1; }
+printf 'FFmpeg target: %s, macOS %s\nCompiler: %s\nSDK: %s\n' \
+    "$ARCH" "$MACOSX_DEPLOYMENT_TARGET" "$CC_MAC" "$SDKROOT"
 PREFIX="$ROOT/third_party/ffmpeg-mac-$ARCH"
 WORK="$ROOT/Mac/ffmpeg-$VERSION-$ARCH"
 mkdir -p "$WORK"
@@ -17,8 +24,8 @@ if [[ ! -d ffmpeg-$VERSION ]]; then
     tar -xf "ffmpeg-$VERSION.tar.xz"
 fi
 cd "ffmpeg-$VERSION"
-./configure --prefix="$PREFIX" --arch="$ARCH" --target-os=darwin \
-    --cc="$(xcrun --find clang)" --enable-shared --disable-static \
+if ! ./configure --prefix="$PREFIX" --arch="$ARCH" --target-os=darwin \
+    --sysroot="$SDKROOT" --cc="$CC_MAC" --enable-shared --disable-static \
     --install-name-dir=@rpath --disable-autodetect --disable-programs \
     --disable-doc --disable-debug --disable-x86asm --disable-everything \
     --disable-avdevice --disable-avfilter --disable-network \
@@ -26,6 +33,13 @@ cd "ffmpeg-$VERSION"
     --enable-swscale --enable-swresample \
     --extra-cflags="-arch $ARCH -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" \
     --extra-ldflags="-arch $ARCH -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET -Wl,-headerpad_max_install_names"
+then
+    echo 'FFmpeg configure failed. Compiler diagnostics from ffbuild/config.log:' >&2
+    if [[ -f ffbuild/config.log ]]; then
+        tail -n 160 ffbuild/config.log >&2
+    fi
+    exit 1
+fi
 make -j "$(sysctl -n hw.ncpu)"
 make install
 mkdir -p "$PREFIX/licenses"
