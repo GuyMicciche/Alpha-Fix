@@ -1,6 +1,10 @@
 #include "AlphaFix.h"
 #include "AlphaFixDecoder.h"
 
+#ifdef __APPLE__
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 #include <cstring>
 #include <cstdio>
 #include <cstdarg>
@@ -539,7 +543,23 @@ static PF_Err GetLayerSourceFilePath(PF_InData* in_data, char* outPath, A_long m
                                 reinterpret_cast<LPCWSTR>(utf16Path), -1,
                                 outPath, maxPathLen, nullptr, nullptr);
 #else
-                            outPath[0] = '\0';
+                            // AE supplies UTF-16 on both platforms; FFmpeg expects UTF-8.
+                            CFIndex length = 0;
+                            while (utf16Path[length]) ++length;
+                            CFStringRef path = CFStringCreateWithCharacters(
+                                kCFAllocatorDefault,
+                                reinterpret_cast<const UniChar*>(utf16Path), length);
+                            if (path) {
+                                if (!CFStringGetCString(path, outPath, maxPathLen,
+                                                        kCFStringEncodingUTF8)) {
+                                    outPath[0] = '\0';
+                                    err = PF_Err_BAD_CALLBACK_PARAM;
+                                }
+                                CFRelease(path);
+                            } else {
+                                outPath[0] = '\0';
+                                err = PF_Err_OUT_OF_MEMORY;
+                            }
 #endif
                             suites.MemorySuite1()->AEGP_UnlockMemHandle(pathMemH);
                         }
@@ -1198,7 +1218,7 @@ extern "C" ALPHAFIX_API PF_Err EffectMain(
     try {
         switch (cmd) {
             case PF_Cmd_ABOUT:
-                sprintf_s(out_data->return_msg, sizeof(out_data->return_msg),
+                snprintf(out_data->return_msg, sizeof(out_data->return_msg),
                     "%s v%d.%d\nFixes 8-bit ProRes 4444 alpha artifacts.\nby Guy Micciche",
                     ALPHAFIX_NAME, ALPHAFIX_MAJOR_VERSION, ALPHAFIX_MINOR_VERSION);
                 break;

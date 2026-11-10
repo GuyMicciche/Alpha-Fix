@@ -2,3 +2,8 @@ Win/
 Release/
 AlphaFix_OLD.zip
 V1
+Mac/
+third_party/
+dist/
+__pycache__/
+AlphaFix_src_*.zip

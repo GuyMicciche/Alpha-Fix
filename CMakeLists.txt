@@ -17,7 +17,11 @@
 #==============================================================================
 
 cmake_minimum_required(VERSION 3.20)
-project(AlphaFix VERSION 1.0.0 LANGUAGES CXX C)
+set(ALPHAFIX_VERSION "1.0.0" CACHE STRING "Release version (without v)")
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
+endif()
+project(AlphaFix VERSION ${ALPHAFIX_VERSION} LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -305,26 +309,57 @@ elseif(APPLE)
         ${AE_UTIL_SOURCES}
     )
 
+    configure_file(cmake/Info.plist.in "${CMAKE_CURRENT_BINARY_DIR}/Info.plist" @ONLY)
     set_target_properties(AlphaFix PROPERTIES
         BUNDLE TRUE
         BUNDLE_EXTENSION "plugin"
         PREFIX ""
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN YES
+        BUILD_WITH_INSTALL_RPATH YES
+        INSTALL_RPATH "@loader_path/../Frameworks"
     )
+    foreach(component avformat avcodec avutil swscale swresample)
+        find_library(FFMPEG_${component} NAMES ${component}
+            PATHS "${FFMPEG_PATH}/lib" NO_DEFAULT_PATH REQUIRED)
+        target_link_libraries(AlphaFix PRIVATE "${FFMPEG_${component}}")
+    endforeach()
+    target_link_libraries(AlphaFix PRIVATE "-framework CoreFoundation")
+    target_link_options(AlphaFix PRIVATE "-Wl,-headerpad_max_install_names")
 
-    target_compile_definitions(AlphaFix PRIVATE __MACH__)
+    execute_process(COMMAND xcrun --find Rez OUTPUT_VARIABLE REZ_EXECUTABLE
+        OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE REZ_RESULT)
+    if(NOT REZ_RESULT EQUAL 0)
+        message(FATAL_ERROR "Rez is required: install full Xcode and select it with xcode-select.")
+    endif()
+    set(REZ_INCLUDE_ARGS "")
+    foreach(inc IN LISTS AE_SDK_INCLUDES)
+        list(APPEND REZ_INCLUDE_ARGS -i "${inc}")
+    endforeach()
+    set(PIPL_RSRC "${CMAKE_CURRENT_BINARY_DIR}/AlphaFix.rsrc")
+    add_custom_command(OUTPUT "${PIPL_RSRC}"
+        COMMAND "${REZ_EXECUTABLE}" -useDF -d AE_OS_MAC=1 -d __LP64__=1
+            -d __x86_64__=1 ${REZ_INCLUDE_ARGS}
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/AlphaFix_PiPL.r" -o "${PIPL_RSRC}"
+        DEPENDS src/AlphaFix_PiPL.r VERBATIM)
+    # Both Mac entry records are in the resource; the Rez processor define
+    # only lets AEConfig.h preprocess successfully.
+    add_custom_target(AlphaFixPiPL DEPENDS "${PIPL_RSRC}")
+    add_dependencies(AlphaFix AlphaFixPiPL)
+    target_sources(AlphaFix PRIVATE "${PIPL_RSRC}")
+    set_source_files_properties("${PIPL_RSRC}" PROPERTIES
+        GENERATED TRUE MACOSX_PACKAGE_LOCATION Resources)
 
-    find_library(AVFORMAT_LIB avformat PATHS "${FFMPEG_PATH}/lib" NO_DEFAULT_PATH)
-    find_library(AVCODEC_LIB avcodec PATHS "${FFMPEG_PATH}/lib" NO_DEFAULT_PATH)
-    find_library(AVUTIL_LIB avutil PATHS "${FFMPEG_PATH}/lib" NO_DEFAULT_PATH)
-    find_library(SWSCALE_LIB swscale PATHS "${FFMPEG_PATH}/lib" NO_DEFAULT_PATH)
-
-    target_link_libraries(AlphaFix PRIVATE
-        ${AVFORMAT_LIB} ${AVCODEC_LIB} ${AVUTIL_LIB} ${SWSCALE_LIB}
-        "-framework CoreFoundation"
-        "-framework CoreMedia"
-        "-framework CoreVideo"
-        "-framework VideoToolbox"
-    )
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    set(ALPHAFIX_CODESIGN_IDENTITY "-" CACHE STRING "Mac signing identity (- means ad hoc)")
+    add_custom_command(TARGET AlphaFix POST_BUILD
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-mac.py"
+            --bundle "$<TARGET_BUNDLE_DIR:AlphaFix>" --ffmpeg "${FFMPEG_PATH}"
+            --identity "${ALPHAFIX_CODESIGN_IDENTITY}"
+        VERBATIM)
+else()
+    message(FATAL_ERROR "AlphaFix supports Windows and macOS only.")
 endif()
 
 # ── Include directories ───────────────────────────────────────────────────────
@@ -338,25 +373,33 @@ target_include_directories(AlphaFix PRIVATE
 
 # ── User-configurable AE app path ─────────────────────────────────────────────
 
-if(WIN32)
-    set(AE_BASE_DIR
-        "C:/Program Files/Adobe/Adobe After Effects 2026"
-        CACHE PATH "Base After Effects application directory"
-    )
-else()
-    set(AE_BASE_DIR
-        "/Applications/Adobe After Effects 2026"
-        CACHE PATH "Base After Effects application directory"
-    )
+set(AE_BASE_DIR "" CACHE PATH "Override detected After Effects application directory")
+if(NOT AE_BASE_DIR)
+    if(WIN32)
+        file(GLOB AE_CANDIDATES "C:/Program Files/Adobe/Adobe After Effects *")
+        set(AE_PLUGIN_SUBDIR "Support Files/Plug-ins")
+    else()
+        file(GLOB AE_CANDIDATES "/Applications/Adobe After Effects *")
+        set(AE_PLUGIN_SUBDIR "Plug-ins")
+    endif()
+    list(SORT AE_CANDIDATES COMPARE NATURAL ORDER DESCENDING)
+    foreach(candidate IN LISTS AE_CANDIDATES)
+        if(NOT candidate MATCHES "[Bb]eta" AND IS_DIRECTORY "${candidate}/${AE_PLUGIN_SUBDIR}")
+            set(AE_BASE_DIR "${candidate}")
+            break()
+        endif()
+    endforeach()
 endif()
-
-# ── Include directories ───────────────────────────────────────────────────────
-
-target_include_directories(AlphaFix PRIVATE
-    ${AE_SDK_INCLUDES}
-    "${FFMPEG_PATH}/include"
-    "${CMAKE_SOURCE_DIR}/src"
-)
+if(WIN32)
+    set(AE_PLUGIN_SUBDIR "Support Files/Plug-ins")
+else()
+    set(AE_PLUGIN_SUBDIR "Plug-ins")
+endif()
+# CI stages packages without an AE installation. Fail only if install is requested.
+set(AE_PLUGIN_INSTALL_DIR "${AE_BASE_DIR}/${AE_PLUGIN_SUBDIR}/AlphaFix")
+install(CODE "if(NOT IS_DIRECTORY \"${AE_BASE_DIR}/${AE_PLUGIN_SUBDIR}\")
+    message(FATAL_ERROR \"After Effects not found. Set AE_BASE_DIR to its application folder.\")
+endif()")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Runtime layout / install destinations
@@ -371,19 +414,6 @@ if(WIN32)
         "${FFMPEG_PATH}/bin/swscale-9.dll"
     )
 
-    set(AE_SUPPORT_FILES_DIR
-        "${AE_BASE_DIR}/Support Files"
-        CACHE PATH "After Effects Support Files directory"
-    )
-    set(AE_PLUGIN_INSTALL_DIR
-        "${AE_SUPPORT_FILES_DIR}/Plug-ins/AlphaFix"
-        CACHE PATH "AE-specific AlphaFix plugin install directory"
-    )
-    set(AE_DLL_INSTALL_DIR
-        "${AE_SUPPORT_FILES_DIR}"
-        CACHE PATH "Directory for required FFmpeg DLLs"
-    )
-
     foreach(REQUIRED_DLL ${REQUIRED_FFMPEG_DLLS})
         if(NOT EXISTS "${REQUIRED_DLL}")
             message(FATAL_ERROR "Required FFmpeg DLL not found: ${REQUIRED_DLL}")
@@ -393,11 +423,6 @@ if(WIN32)
     set(STAGING_RELEASE_DIR
         "${CMAKE_SOURCE_DIR}/Release"
         CACHE PATH "Root-level staging folder for packaged plugin files"
-    )
-
-    set(STAGING_RELEASE_DIR
-        "${CMAKE_SOURCE_DIR}/Release"
-        CACHE PATH "Root-level staging folder"
     )
 
     set(STAGING_SUPPORT_FILES_DIR
@@ -435,11 +460,7 @@ if(WIN32)
         COMMENT "Creating Release_v${PROJECT_VERSION}.zip"
     )
 
-elseif(APPLE)
-    set(AE_PLUGIN_INSTALL_DIR
-        "${AE_BASE_DIR}/Plug-ins/AlphaFix"
-        CACHE PATH "AE-specific AlphaFix plugin install directory"
-    )
+
 endif()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -453,10 +474,7 @@ install(TARGETS AlphaFix
 )
 
 if(WIN32)
-    set(AE_FFMPEG_INSTALL_DIR
-        "${AE_PLUGIN_INSTALL_DIR}/alphafix.ffmpeg"
-        CACHE PATH "Directory for FFmpeg DLLs (next to .aex)"
-    )
+    set(AE_FFMPEG_INSTALL_DIR "${AE_PLUGIN_INSTALL_DIR}/alphafix.ffmpeg")
     install(FILES ${REQUIRED_FFMPEG_DLLS} DESTINATION "${AE_FFMPEG_INSTALL_DIR}")
 endif()
 

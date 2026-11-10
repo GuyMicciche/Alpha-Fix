@@ -95,6 +95,14 @@ You need at minimum: `avformat`, `avcodec`, `avutil`, `swscale`.
 
 ### Windows Build
 
+`buildwin.bat` installs into the newest detected stable AE version under
+`C:/Program Files/Adobe` by default. Run as Administrator for installation.
+Set `AE_BASE_DIR` to choose another AE application directory. Build failures stop
+the script before install. Use `buildwin.bat --no-install --no-pause` for CI or
+packaging only. The staged folder is `Release/Support Files/Plug-ins/AlphaFix`.
+The script discovers any Visual Studio 2022 edition with the C++ tools installed.
+
+
 Once both dependencies are extracted, run `buildwin.bat` **as Administrator** from the project root, or build manually using `x64 Native Tools Command Prompt for VS 2022` **Run as Administrator**:
 
 ```bat
@@ -112,17 +120,75 @@ cmake --install build --config Release
 
 ### macOS Build
 
+Install full Xcode (including its command-line tools), CMake, and Python 3.
+Select Xcode with `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
+Then run:
+
 ```bash
-export AE_SDK=/path/to/AfterEffectsSDK
-export FFMPEG=/usr/local/opt/ffmpeg
-
-cmake -B build -S . -G Xcode \
-    -DAE_SDK_PATH="$AE_SDK" \
-    -DFFMPEG_PATH="$FFMPEG"
-
-cmake --build build --config Release
-cmake --install build --config Release
+bash buildmac.sh
 ```
+
+The script extracts the tracked AE SDK archive if necessary, builds FFmpeg 8.1
+on the first run, bundles its dylibs, signs the bundle ad hoc, and installs into
+the newest stable `/Applications/Adobe After Effects */Plug-ins/AlphaFix` folder.
+It asks for sudo when installing. Close AE first and restart it after installation.
+The default architecture is the current Mac's architecture. macOS 12+ is targeted;
+the installed After Effects version may require a newer OS.
+
+```bash
+bash buildmac.sh --no-install           # build only
+bash buildmac.sh --arch arm64           # Apple Silicon
+bash buildmac.sh --arch x86_64          # Intel
+AE_BASE_DIR="/Applications/Adobe After Effects 2026" bash buildmac.sh
+```
+
+Output: `Mac/<architecture>-Release/AlphaFix.plugin`. FFmpeg is inside
+`Contents/Frameworks`; Homebrew is not required at runtime. Only ProRes decoding,
+MOV demuxing, file input, and required conversion libraries are enabled in this
+Mac FFmpeg build. It is intentionally smaller than the Windows full FFmpeg build.
+Use a separate architecture build rather than mixing libraries of different architectures.
+
+Overrides: `AE_SDK_PATH`, `FFMPEG_PATH`, `AE_BASE_DIR`, `ALPHAFIX_VERSION`,
+`MACOSX_DEPLOYMENT_TARGET`, and `CODESIGN_IDENTITY`. An external FFmpeg prefix
+must contain shared libraries with no dependencies beyond macOS and the sibling
+FFmpeg libraries. The bundler rejects unresolved external dependencies.
+
+Mac releases are ad-hoc signed, not Developer ID signed or notarized. Downloaded
+builds may be blocked by macOS quarantine; for a trusted download, remove quarantine
+from the extracted bundle before installation:
+
+```bash
+xattr -dr com.apple.quarantine /path/to/AlphaFix.plugin
+```
+
+### Automatic GitHub releases
+
+Commit and push the source changes, including `.github/workflows/release.yml`.
+The existing tracked archives `AfterEffectsSDK/AfterEffectsSDK.zip` and
+`ffmpeg-shared/ffmpeg-8.1-full_build-shared.7z` must remain available to checkout.
+GitHub Actions must be enabled with permission for workflows to create releases.
+No custom tokens or Mac hardware are needed.
+
+```bash
+git tag v1.0.3
+git push origin v1.0.3
+```
+
+Use an unused `vMAJOR.MINOR.PATCH` tag. CI builds Windows x64, Mac Apple Silicon,
+and Mac Intel on GitHub-hosted runners. Only after all three succeed does it
+publish a release with three ZIP files and `SHA256SUMS.txt`. Failed builds do not
+publish a partial release. Re-running a tag workflow replaces that tag's assets.
+Mac FFmpeg builds are cached separately per architecture. A manual Actions run
+on a branch builds downloadable workflow artifacts without publishing a release.
+
+To install a release, close AE, extract the ZIP, then copy Windows's `AlphaFix`
+folder from `Support Files/Plug-ins/` or Mac's `AlphaFix.plugin` bundle into AE's
+own `Plug-ins` folder. Choose the Mac ZIP matching the architecture AE runs under
+(Intel for an AE process running under Rosetta). FFmpeg is included in each package.
+
+The release tag sets CMake/package and Mac bundle versions. The existing AE effect
+version in `AlphaFix.h` / `AlphaFix_PiPL.r` stays independent; update both together
+when changing the effect's own version metadata.
 
 ### PiPL Resource Note (Windows)
 

@@ -17,6 +17,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+#include <new>
 #include <cstring>
 #include <cstdlib>
 #include <cmath>

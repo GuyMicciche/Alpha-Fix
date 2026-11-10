@@ -1,0 +1,117 @@
+name: Build and release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            platform: windows-x64
+          - runner: macos-15
+            platform: macos-arm64
+            arch: arm64
+          - runner: macos-15-intel
+            platform: macos-x86_64
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Set package version
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          if [[ "$REF_TYPE" == tag ]]; then
+            [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Use a vMAJOR.MINOR.PATCH tag'; exit 1; }
+            echo "ALPHAFIX_VERSION=${REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo 'ALPHAFIX_VERSION=1.0.0' >> "$GITHUB_ENV"
+          fi
+      - name: Extract After Effects SDK
+        run: python scripts/extract-dependency.py AfterEffectsSDK/AfterEffectsSDK.zip AfterEffectsSDK Headers/AE_Effect.h
+      - name: Extract Windows FFmpeg
+        if: runner.os == 'Windows'
+        run: python scripts/extract-dependency.py ffmpeg-shared/ffmpeg-8.1-full_build-shared.7z ffmpeg-shared include/libavformat/avformat.h
+      - name: Cache Mac FFmpeg
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: third_party/ffmpeg-mac-${{ matrix.arch }}
+          key: ffmpeg-8.1-macos12-${{ matrix.arch }}-${{ hashFiles('scripts/build-ffmpeg-mac.sh') }}
+      - name: Build Windows
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call buildwin.bat --no-install --no-pause
+      - name: Build Mac
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash buildmac.sh --no-install --arch '${{ matrix.arch }}'
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item README.md 'Release/README.md'
+          Copy-Item ffmpeg-shared/LICENSE 'Release/FFmpeg-LICENSE.txt'
+          Copy-Item ffmpeg-shared/README.txt 'Release/FFmpeg-README.txt'
+          Compress-Archive -Path Release/* -DestinationPath "dist/AlphaFix-v$env:ALPHAFIX_VERSION-windows-x64.zip"
+      - name: Package Mac
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p dist Mac/package
+          ditto "Mac/$ARCH-Release/AlphaFix.plugin" Mac/package/AlphaFix.plugin
+          cp README.md Mac/package/
+          ditto -c -k --keepParent Mac/package "dist/AlphaFix-v$ALPHAFIX_VERSION-macos-$ARCH.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AlphaFix-${{ matrix.platform }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    # Manual branch runs validate builds without publishing a release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: AlphaFix-*
+          merge-multiple: true
+          path: dist
+      - name: Publish release after every platform succeeds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          cd dist
+          sha256sum *.zip > SHA256SUMS.txt
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --title "AlphaFix $TAG" --generate-notes --draft
+          fi
+          gh release upload "$TAG" ./*.zip SHA256SUMS.txt --clobber
+          gh release edit "$TAG" --draft=false
