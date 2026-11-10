@@ -23,7 +23,7 @@
     #define ALPHAFIX_API __attribute__((visibility("default")))
 #endif
 
-#define ALPHAFIX_NAME           "AlphaFix"
+#define ALPHAFIX_NAME           "Alpha Fix"
 #define ALPHAFIX_MATCH_NAME     "ADBE AlphaFix"
 #define ALPHAFIX_MAJOR_VERSION  1
 #define ALPHAFIX_MINOR_VERSION  0
