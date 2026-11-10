@@ -48,9 +48,9 @@ if [[ -d "$FFMPEG_PATH/licenses" ]]; then
     codesign --force --sign "${CODESIGN_IDENTITY:--}" "$BUILD/AlphaFix.plugin"
 fi
 codesign --verify --deep --strict "$BUILD/AlphaFix.plugin"
-lipo -verify_arch "$ARCH" "$BUILD/AlphaFix.plugin/Contents/MacOS/AlphaFix"
+lipo "$BUILD/AlphaFix.plugin/Contents/MacOS/AlphaFix" -verify_arch "$ARCH"
 for lib in "$BUILD/AlphaFix.plugin/Contents/Frameworks/"*.dylib; do
-    lipo -verify_arch "$ARCH" "$lib"
+    lipo "$lib" -verify_arch "$ARCH"
 done
 if [[ "$INSTALL" == 1 ]]; then
     # Elevation is only needed when copying into /Applications.
