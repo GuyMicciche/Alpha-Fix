@@ -67,24 +67,13 @@ AfterEffectsSDK\
   ...
 ```
 
-**FFmpeg Shared Build (Windows)**
+**Minimal FFmpeg (Windows)**
 
-Download `ffmpeg-8.1-full_build-shared.7z` from [gyan.dev FFmpeg builds](https://www.gyan.dev/ffmpeg/builds/) and place the archive at:
-
-```
-ffmpeg-shared\ffmpeg-8.1-full_build-shared.7z
-```
-
-Extract it in place so the result looks like:
-
-```
-ffmpeg-shared\
-  bin\
-  include\
-  lib\
-```
-
-You need at minimum: `avformat`, `avcodec`, `avutil`, `swscale`.
+The default Windows build uses `third_party/ffmpeg-win-minimal`, built automatically
+by `buildffmpegwin.bat` when missing. It needs MSYS2 with GNU Make and VS 2022 C++
+tools (`MSYS2_ROOT` can select the MSYS2 installation). Only ProRes decoding,
+MOV demuxing and local file input are enabled. The full `ffmpeg-shared` archive
+is no longer the default and is never extracted by release CI.
 
 **Other requirements:**
 
@@ -99,7 +88,7 @@ You need at minimum: `avformat`, `avcodec`, `avutil`, `swscale`.
 `C:/Program Files/Adobe` by default. Run as Administrator for installation.
 Set `AE_BASE_DIR` to choose another AE application directory. Build failures stop
 the script before install. Use `buildwin.bat --no-install --no-pause` for CI or
-packaging only. The staged folder is `Release-Alpha-Fix/Support Files/Plug-ins/Alpha Fix`.
+packaging only. The staged folder is `Release-Alpha-Fix/<version>/Alpha Fix`.
 The script discovers any Visual Studio 2022 edition with the C++ tools installed.
 
 
@@ -142,7 +131,7 @@ bash buildmac.sh --arch x86_64          # Intel
 AE_BASE_DIR="/Applications/Adobe After Effects 2026" bash buildmac.sh
 ```
 
-Output: `Mac/<architecture>-Release/Alpha Fix.plugin`. FFmpeg is inside
+Output: `Mac/<architecture>-Release/Alpha_Fix.plugin`. FFmpeg is inside
 `Contents/Frameworks`; Homebrew is not required at runtime. Only ProRes decoding,
 MOV demuxing, file input, and required conversion libraries are enabled in this
 Mac FFmpeg build. It is intentionally smaller than the Windows full FFmpeg build.
@@ -158,7 +147,7 @@ builds may be blocked by macOS quarantine; for a trusted download, remove quaran
 from the extracted bundle before installation:
 
 ```bash
-xattr -dr com.apple.quarantine "/path/to/Alpha Fix.plugin"
+xattr -dr com.apple.quarantine "/path/to/Alpha_Fix.plugin"
 ```
 
 ### Automatic GitHub releases
@@ -182,7 +171,7 @@ Mac FFmpeg builds are cached separately per architecture. A manual Actions run
 on a branch builds downloadable workflow artifacts without publishing a release.
 
 To install a release, close AE, extract the ZIP, then copy Windows's `Alpha Fix`
-folder from `Support Files/Plug-ins/` or Mac's `Alpha Fix.plugin` bundle into AE's
+folder from `Support Files/Plug-ins/` or Mac's `Alpha_Fix.plugin` bundle into AE's
 own `Plug-ins` folder. Choose the Mac ZIP matching the architecture AE runs under
 (Intel for an AE process running under Rosetta). FFmpeg is included in each package.
 
@@ -252,7 +241,18 @@ Guy Micciche
 
 The effect is named **Alpha Fix** in Effect > Channel and Effect Controls.
 Remove the previous `AlphaFix.aex` / `AlphaFix.plugin` installation before installing
-`Alpha Fix.aex` / `Alpha Fix.plugin`, so AE loads one copy. Existing projects keep
+`Alpha_Fix.aex` / `Alpha_Fix.plugin`, so AE loads one copy. Existing projects keep
 working through the unchanged internal match name. The About box now includes the
 full release version, Guy's Dojo copyright and description in the standard AE format.
 The source folder and CMake target remain AlphaFix.
+
+## Version 1.0.7 packaging
+
+The effect's display name remains **Alpha Fix**. Binaries are `Alpha_Fix.aex` and
+`Alpha_Fix.plugin` (Mac executable `Alpha_Fix`). Each ZIP starts with `Alpha Fix/`;
+there is no `Support Files/Plug-ins` wrapper. Windows stages the same layout in
+`Release-Alpha-Fix/1.0.7/Alpha Fix/`. Install that folder in AE's Plug-ins directory
+after removing any older `AlphaFix.aex`, `Alpha Fix.aex` or corresponding Mac bundle.
+Keep `alphafix.ffmpeg/` beside the Windows AEX. Minimal-build configuration and
+third-party notices are included. CI verifies component flags, library sizes,
+binary filenames and archive layout to prevent the full FFmpeg build returning.

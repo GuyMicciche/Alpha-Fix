@@ -372,7 +372,7 @@ else()
     message(FATAL_ERROR "AlphaFix supports Windows and macOS only.")
 endif()
 
-set_target_properties(AlphaFix PROPERTIES OUTPUT_NAME "Alpha Fix")
+set_target_properties(AlphaFix PROPERTIES OUTPUT_NAME "Alpha_Fix")
 if(MSVC)
  target_compile_options(AlphaFix PRIVATE /utf-8)
 endif()
@@ -435,25 +435,14 @@ if(WIN32)
         endif()
     endforeach()
 
-    set(STAGING_RELEASE_DIR
-        "${CMAKE_SOURCE_DIR}/Release-Alpha-Fix"
-        CACHE PATH "Root-level staging folder for packaged plugin files"
-    )
-
-    set(STAGING_SUPPORT_FILES_DIR
-        "${STAGING_RELEASE_DIR}/Support Files"
-    )
-
-    set(STAGING_PLUGIN_DIR
-        "${STAGING_SUPPORT_FILES_DIR}/Plug-ins/Alpha Fix"
-    )
+    set(STAGING_RELEASE_DIR "${CMAKE_SOURCE_DIR}/Release-Alpha-Fix/${PROJECT_VERSION}")
+    set(STAGING_PLUGIN_DIR "${STAGING_RELEASE_DIR}/Alpha Fix")
 
     set(STAGING_FFMPEG_DIR
         "${STAGING_PLUGIN_DIR}/alphafix.ffmpeg"
     )
 
     add_custom_command(TARGET AlphaFix POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGING_SUPPORT_FILES_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGING_PLUGIN_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGING_FFMPEG_DIR}"
 
@@ -465,12 +454,14 @@ if(WIN32)
             ${REQUIRED_FFMPEG_DLLS}
             "${STAGING_FFMPEG_DIR}/"
 
-        COMMENT "Staging Alpha Fix.aex + FFmpeg DLLs into alphafix.ffmpeg subfolder"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/README.md" "${STAGING_PLUGIN_DIR}/README.md"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${FFMPEG_PATH}/licenses" "${STAGING_PLUGIN_DIR}/licenses"
+        COMMENT "Staging Alpha_Fix.aex and minimal FFmpeg in Alpha Fix/"
         COMMAND_EXPAND_LISTS
     )
 
     add_custom_command(TARGET AlphaFix POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E tar "cf" "${CMAKE_SOURCE_DIR}/Alpha-Fix_v${PROJECT_VERSION}.zip" --format=zip "."
+        COMMAND ${CMAKE_COMMAND} -E tar "cf" "${CMAKE_SOURCE_DIR}/Alpha-Fix_v${PROJECT_VERSION}.zip" --format=zip "Alpha Fix"
         WORKING_DIRECTORY "${STAGING_RELEASE_DIR}"
         COMMENT "Creating Release_v${PROJECT_VERSION}.zip"
     )
@@ -510,3 +501,24 @@ if(PIPL_TOOL_EXE)
 endif()
 message(STATUS "==============================")
 message(STATUS "")
+# Exercise the same decoder used by the effect with the selected FFmpeg build.
+option(ALPHAFIX_BUILD_TESTS "Build the native ProRes alpha smoke check" ON)
+if(ALPHAFIX_BUILD_TESTS)
+ enable_testing()
+ add_executable(AlphaFixDecoderSmoke tests/DecoderSmoke.cpp src/AlphaFixDecoder.cpp)
+ target_include_directories(AlphaFixDecoderSmoke PRIVATE src ${AE_SDK_INCLUDES} "${FFMPEG_PATH}/include")
+ if(WIN32)
+  target_compile_definitions(AlphaFixDecoderSmoke PRIVATE MSWindows NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
+  target_compile_options(AlphaFixDecoderSmoke PRIVATE /utf-8)
+  target_link_libraries(AlphaFixDecoderSmoke PRIVATE ${GENERATED_FFMPEG_LIBS})
+  add_custom_command(TARGET AlphaFixDecoderSmoke POST_BUILD
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${REQUIRED_FFMPEG_DLLS} "$<TARGET_FILE_DIR:AlphaFixDecoderSmoke>"
+   COMMAND_EXPAND_LISTS VERBATIM)
+ else()
+  foreach(component avformat avcodec avutil swscale swresample)
+   target_link_libraries(AlphaFixDecoderSmoke PRIVATE "${FFMPEG_${component}}")
+  endforeach()
+  set_target_properties(AlphaFixDecoderSmoke PROPERTIES BUILD_RPATH "${FFMPEG_PATH}/lib")
+ endif()
+ add_test(NAME minimal_prores_alpha COMMAND AlphaFixDecoderSmoke "${CMAKE_SOURCE_DIR}/tests/fixtures/half-alpha-prores4444.mov")
+endif()

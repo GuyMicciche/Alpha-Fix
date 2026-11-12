@@ -12,7 +12,7 @@ shift
 goto args
 :setup
 if not defined AE_SDK_PATH set "AE_SDK_PATH=%ROOT%AfterEffectsSDK"
-if not defined FFMPEG_PATH set "FFMPEG_PATH=%ROOT%ffmpeg-shared"
+if not defined FFMPEG_PATH set "FFMPEG_PATH=%ROOT%third_party\ffmpeg-win-minimal"
 if not defined ALPHAFIX_VERSION for /f %%V in ('python "%ROOT%scripts\version.py"') do set "ALPHAFIX_VERSION=%%V"
 REM Use the active developer environment, or discover any VS 2022 edition.
 if defined VSCMD_VER goto configure
@@ -27,6 +27,13 @@ call "%VSROOT%\VC\Auxiliary\Build\vcvars64.bat"
 if errorlevel 1 goto failed
 :configure
 cd /d "%ROOT%"
+if not exist "%FFMPEG_PATH%\include\libavformat\avformat.h" (
+    set "FFMPEG_PREFIX=%FFMPEG_PATH%"
+    call "%ROOT%buildffmpegwin.bat"
+    if errorlevel 1 goto failed
+)
+python "%ROOT%scripts\verify-minimal-ffmpeg.py" --prefix "%FFMPEG_PATH%"
+if errorlevel 1 goto failed
 cmake -B Win -S . -G "Visual Studio 17 2022" -A x64 ^
     -DAE_SDK_PATH="%AE_SDK_PATH%" ^
     -DFFMPEG_PATH="%FFMPEG_PATH%" ^
@@ -34,6 +41,8 @@ cmake -B Win -S . -G "Visual Studio 17 2022" -A x64 ^
     -DALPHAFIX_VERSION="%ALPHAFIX_VERSION%"
 if errorlevel 1 goto failed
 cmake --build Win --config Release --parallel
+if errorlevel 1 goto failed
+ctest --test-dir Win -C Release --output-on-failure
 if errorlevel 1 goto failed
 if "%DO_INSTALL%"=="0" goto done
 cmake --install Win --config Release

@@ -255,7 +255,7 @@ static bool LoadAllFFmpegDlls()
     if (hFind == INVALID_HANDLE_VALUE) {
         LoaderLog("[loader] No DLLs found in sidecar folder (err %lu). "
                   "Expected the FFmpeg DLLs in an 'alphafix.ffmpeg' folder "
-                  "next to Alpha Fix.aex.", (unsigned long)GetLastError());
+                  "next to Alpha_Fix.aex.", (unsigned long)GetLastError());
         return false;
     }
 
@@ -362,7 +362,7 @@ static int DelayLoadFilter(unsigned int code)
 {
     if (code == kDelayLoadModNotFound || code == kDelayLoadProcNotFound) {
         LoaderLog("[seh] Caught delay-load exception 0x%08X while calling FFmpeg. "
-                  "Check that the alphafix.ffmpeg folder sits next to Alpha Fix.aex "
+                  "Check that the alphafix.ffmpeg folder sits next to Alpha_Fix.aex "
                   "and contains matching x64 DLLs.", code);
         return EXCEPTION_EXECUTE_HANDLER;
     }

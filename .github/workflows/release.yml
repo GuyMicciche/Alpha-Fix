@@ -46,9 +46,20 @@ jobs:
           fi
       - name: Extract After Effects SDK
         run: python scripts/extract-dependency.py AfterEffectsSDK/AfterEffectsSDK.zip AfterEffectsSDK Headers/AE_Effect.h
-      - name: Extract Windows FFmpeg
+      - name: Set up MSYS2 for minimal Windows FFmpeg
         if: runner.os == 'Windows'
-        run: python scripts/extract-dependency.py ffmpeg-shared/ffmpeg-8.1-full_build-shared.7z ffmpeg-shared include/libavformat/avformat.h
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MSYS
+          path-type: inherit
+          install: make curl tar diffutils
+      - name: Cache minimal Windows FFmpeg
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: third_party/ffmpeg-win-minimal
+          key: ffmpeg-8.1-msvc-x64-minimal-${{ hashFiles('scripts/build-ffmpeg-win.sh') }}
       - name: Cache Mac FFmpeg
         if: runner.os == 'macOS'
         uses: actions/cache@v4
@@ -58,6 +69,8 @@ jobs:
       - name: Build Windows
         if: runner.os == 'Windows'
         shell: cmd
+        env:
+          MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: call buildwin.bat --no-install --no-pause
       - name: Build Mac
         if: runner.os == 'macOS'
@@ -77,20 +90,19 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item README.md 'Release-Alpha-Fix/README.md'
-          Copy-Item ffmpeg-shared/LICENSE 'Release-Alpha-Fix/FFmpeg-LICENSE.txt'
-          Copy-Item ffmpeg-shared/README.txt 'Release-Alpha-Fix/FFmpeg-README.txt'
-          Compress-Archive -Path Release-Alpha-Fix/* -DestinationPath "dist/Alpha-Fix-v$env:ALPHAFIX_VERSION-windows-x64.zip"
+          Compress-Archive -LiteralPath "Release-Alpha-Fix/$env:ALPHAFIX_VERSION/Alpha Fix" -DestinationPath "dist/Alpha-Fix-v$env:ALPHAFIX_VERSION-windows-x64.zip"
+          python scripts/verify-package.py "dist/Alpha-Fix-v$env:ALPHAFIX_VERSION-windows-x64.zip"
       - name: Package Mac
         if: runner.os == 'macOS'
         shell: bash
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          mkdir -p dist Mac/package
-          ditto "Mac/$ARCH-Release/Alpha Fix.plugin" "Mac/package/Alpha Fix.plugin"
-          cp README.md Mac/package/
-          ditto -c -k --keepParent Mac/package "dist/Alpha-Fix-v$ALPHAFIX_VERSION-macos-$ARCH.zip"
+          mkdir -p dist "Mac/package/Alpha Fix"
+          ditto "Mac/$ARCH-Release/Alpha_Fix.plugin" "Mac/package/Alpha Fix/Alpha_Fix.plugin"
+          cp README.md "Mac/package/Alpha Fix/"
+          ditto -c -k --keepParent "Mac/package/Alpha Fix" "dist/Alpha-Fix-v$ALPHAFIX_VERSION-macos-$ARCH.zip"
+          python3 scripts/verify-package.py "dist/Alpha-Fix-v$ALPHAFIX_VERSION-macos-$ARCH.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: Alpha-Fix-${{ matrix.platform }}
