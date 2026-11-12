@@ -17,7 +17,17 @@
 #==============================================================================
 
 cmake_minimum_required(VERSION 3.20)
-set(ALPHAFIX_VERSION "1.0.0" CACHE STRING "Release version (without v)")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/AlphaFixVersion.h")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/AlphaFixVersion.h" VERSION_HEADER)
+foreach(part MAJOR MINOR BUG)
+ string(REGEX MATCH "#define[ \t]+ALPHAFIX_${part}_VERSION[ \t]+([0-9]+)" _ "${VERSION_HEADER}")
+ set(ALPHAFIX_${part} "${CMAKE_MATCH_1}")
+endforeach()
+set(PRODUCT_VERSION "${ALPHAFIX_MAJOR}.${ALPHAFIX_MINOR}.${ALPHAFIX_BUG}")
+if(DEFINED ALPHAFIX_VERSION AND NOT "${ALPHAFIX_VERSION}" STREQUAL "" AND NOT "${ALPHAFIX_VERSION}" STREQUAL "${PRODUCT_VERSION}")
+ message(FATAL_ERROR "Release version must match src/AlphaFixVersion.h (${PRODUCT_VERSION})")
+endif()
+set(ALPHAFIX_VERSION "${PRODUCT_VERSION}")
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
 endif()
@@ -147,7 +157,7 @@ if(WIN32)
             ${PIPL_INCLUDE_ARGS}
             "${PIPL_R_INPUT}"
             > "${PIPL_RR_FILE}"
-        DEPENDS "${PIPL_R_INPUT}"
+        DEPENDS "${PIPL_R_INPUT}" "${CMAKE_SOURCE_DIR}/src/AlphaFixVersion.h"
         COMMENT "[PiPL] Preprocessing .r -> .rr"
         VERBATIM
     )
@@ -342,7 +352,7 @@ elseif(APPLE)
         COMMAND "${REZ_EXECUTABLE}" -useDF -d AE_OS_MAC=1 -d __LP64__=1
             -d __x86_64__=1 ${REZ_INCLUDE_ARGS}
             "${CMAKE_CURRENT_SOURCE_DIR}/src/AlphaFix_PiPL.r" -o "${PIPL_RSRC}"
-        DEPENDS src/AlphaFix_PiPL.r VERBATIM)
+        DEPENDS src/AlphaFix_PiPL.r src/AlphaFixVersion.h VERBATIM)
     # Both Mac entry records are in the resource; the Rez processor define
     # only lets AEConfig.h preprocess successfully.
     add_custom_target(AlphaFixPiPL DEPENDS "${PIPL_RSRC}")
@@ -360,6 +370,11 @@ elseif(APPLE)
         VERBATIM)
 else()
     message(FATAL_ERROR "AlphaFix supports Windows and macOS only.")
+endif()
+
+set_target_properties(AlphaFix PROPERTIES OUTPUT_NAME "Alpha Fix")
+if(MSVC)
+ target_compile_options(AlphaFix PRIVATE /utf-8)
 endif()
 
 # ── Include directories ───────────────────────────────────────────────────────
@@ -396,7 +411,7 @@ else()
     set(AE_PLUGIN_SUBDIR "Plug-ins")
 endif()
 # CI stages packages without an AE installation. Fail only if install is requested.
-set(AE_PLUGIN_INSTALL_DIR "${AE_BASE_DIR}/${AE_PLUGIN_SUBDIR}/AlphaFix")
+set(AE_PLUGIN_INSTALL_DIR "${AE_BASE_DIR}/${AE_PLUGIN_SUBDIR}/Alpha Fix")
 install(CODE "if(NOT IS_DIRECTORY \"${AE_BASE_DIR}/${AE_PLUGIN_SUBDIR}\")
     message(FATAL_ERROR \"After Effects not found. Set AE_BASE_DIR to its application folder.\")
 endif()")
@@ -421,7 +436,7 @@ if(WIN32)
     endforeach()
 
     set(STAGING_RELEASE_DIR
-        "${CMAKE_SOURCE_DIR}/Release"
+        "${CMAKE_SOURCE_DIR}/Release-Alpha-Fix"
         CACHE PATH "Root-level staging folder for packaged plugin files"
     )
 
@@ -430,7 +445,7 @@ if(WIN32)
     )
 
     set(STAGING_PLUGIN_DIR
-        "${STAGING_SUPPORT_FILES_DIR}/Plug-ins/AlphaFix"
+        "${STAGING_SUPPORT_FILES_DIR}/Plug-ins/Alpha Fix"
     )
 
     set(STAGING_FFMPEG_DIR
@@ -450,12 +465,12 @@ if(WIN32)
             ${REQUIRED_FFMPEG_DLLS}
             "${STAGING_FFMPEG_DIR}/"
 
-        COMMENT "Staging AlphaFix.aex + FFmpeg DLLs into alphafix.ffmpeg subfolder"
+        COMMENT "Staging Alpha Fix.aex + FFmpeg DLLs into alphafix.ffmpeg subfolder"
         COMMAND_EXPAND_LISTS
     )
 
     add_custom_command(TARGET AlphaFix POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E tar "cf" "${CMAKE_SOURCE_DIR}/AlphaFix_v${PROJECT_VERSION}.zip" --format=zip "."
+        COMMAND ${CMAKE_COMMAND} -E tar "cf" "${CMAKE_SOURCE_DIR}/Alpha-Fix_v${PROJECT_VERSION}.zip" --format=zip "."
         WORKING_DIRECTORY "${STAGING_RELEASE_DIR}"
         COMMENT "Creating Release_v${PROJECT_VERSION}.zip"
     )

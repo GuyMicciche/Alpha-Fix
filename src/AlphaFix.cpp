@@ -22,6 +22,9 @@
 
 // ── Global plugin ID — registered once in GlobalSetup, reused everywhere ────
 static AEGP_PluginID g_PluginID = 0;
+static_assert(PF_VERSION(ALPHAFIX_MAJOR_VERSION,ALPHAFIX_MINOR_VERSION,ALPHAFIX_BUG_VERSION,
+                        ALPHAFIX_STAGE_VERSION,ALPHAFIX_BUILD_VERSION)==ALPHAFIX_PIPL_VERSION,
+              "Alpha Fix PiPL and runtime versions must agree");
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -252,7 +255,7 @@ static bool LoadAllFFmpegDlls()
     if (hFind == INVALID_HANDLE_VALUE) {
         LoaderLog("[loader] No DLLs found in sidecar folder (err %lu). "
                   "Expected the FFmpeg DLLs in an 'alphafix.ffmpeg' folder "
-                  "next to AlphaFix.aex.", (unsigned long)GetLastError());
+                  "next to Alpha Fix.aex.", (unsigned long)GetLastError());
         return false;
     }
 
@@ -359,7 +362,7 @@ static int DelayLoadFilter(unsigned int code)
 {
     if (code == kDelayLoadModNotFound || code == kDelayLoadProcNotFound) {
         LoaderLog("[seh] Caught delay-load exception 0x%08X while calling FFmpeg. "
-                  "Check that the alphafix.ffmpeg folder sits next to AlphaFix.aex "
+                  "Check that the alphafix.ffmpeg folder sits next to Alpha Fix.aex "
                   "and contains matching x64 DLLs.", code);
         return EXCEPTION_EXECUTE_HANDLER;
     }
@@ -445,7 +448,7 @@ static PF_Err GlobalSetup(PF_InData* in_data, PF_OutData* out_data)
 {    
     out_data->my_version = PF_VERSION(
         ALPHAFIX_MAJOR_VERSION, ALPHAFIX_MINOR_VERSION,
-        ALPHAFIX_BUG_VERSION, PF_Stage_DEVELOP, ALPHAFIX_BUILD_VERSION);
+        ALPHAFIX_BUG_VERSION, ALPHAFIX_STAGE_VERSION, ALPHAFIX_BUILD_VERSION);
 
     out_data->out_flags  = PF_OutFlag_DEEP_COLOR_AWARE | PF_OutFlag_NON_PARAM_VARY;
     out_data->out_flags2 = PF_OutFlag2_SUPPORTS_SMART_RENDER |
@@ -1219,8 +1222,9 @@ extern "C" ALPHAFIX_API PF_Err EffectMain(
         switch (cmd) {
             case PF_Cmd_ABOUT:
                 snprintf(out_data->return_msg, sizeof(out_data->return_msg),
-                    "%s v%d.%d\nFixes 8-bit ProRes 4444 alpha artifacts.\nby Guy Micciche",
-                    ALPHAFIX_NAME, ALPHAFIX_MAJOR_VERSION, ALPHAFIX_MINOR_VERSION);
+                    "%s, v%d.%d.%d\r\r%s\r\r%s",
+                    ALPHAFIX_NAME, ALPHAFIX_MAJOR_VERSION, ALPHAFIX_MINOR_VERSION,
+                    ALPHAFIX_BUG_VERSION, ALPHAFIX_COPYRIGHT, ALPHAFIX_DESCRIPTION);
                 break;
             case PF_Cmd_GLOBAL_SETUP:
                 // Note: a failed FFmpeg load is NOT fatal here. Returning an

@@ -38,22 +38,22 @@ cmake -S "$ROOT" -B "$BUILD" -G 'Unix Makefiles' \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
     -DAE_SDK_PATH="$SDK" -DFFMPEG_PATH="$FFMPEG_PATH" \
     -DAE_BASE_DIR="${AE_BASE_DIR:-}" \
-    -DALPHAFIX_VERSION="${ALPHAFIX_VERSION:-1.0.0}" \
+    -DALPHAFIX_VERSION="${ALPHAFIX_VERSION:-$(python3 "$ROOT/scripts/version.py")}" \
     -DALPHAFIX_CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
 cmake --build "$BUILD" --parallel "$(sysctl -n hw.ncpu)"
 # Keep third-party notices inside the final bundle before its final signature.
 if [[ -d "$FFMPEG_PATH/licenses" ]]; then
-    mkdir -p "$BUILD/AlphaFix.plugin/Contents/Resources/licenses"
-    ditto "$FFMPEG_PATH/licenses" "$BUILD/AlphaFix.plugin/Contents/Resources/licenses"
-    codesign --force --sign "${CODESIGN_IDENTITY:--}" "$BUILD/AlphaFix.plugin"
+    mkdir -p "$BUILD/Alpha Fix.plugin/Contents/Resources/licenses"
+    ditto "$FFMPEG_PATH/licenses" "$BUILD/Alpha Fix.plugin/Contents/Resources/licenses"
+    codesign --force --sign "${CODESIGN_IDENTITY:--}" "$BUILD/Alpha Fix.plugin"
 fi
-codesign --verify --deep --strict "$BUILD/AlphaFix.plugin"
-lipo "$BUILD/AlphaFix.plugin/Contents/MacOS/AlphaFix" -verify_arch "$ARCH"
-for lib in "$BUILD/AlphaFix.plugin/Contents/Frameworks/"*.dylib; do
+codesign --verify --deep --strict "$BUILD/Alpha Fix.plugin"
+lipo "$BUILD/Alpha Fix.plugin/Contents/MacOS/Alpha Fix" -verify_arch "$ARCH"
+for lib in "$BUILD/Alpha Fix.plugin/Contents/Frameworks/"*.dylib; do
     lipo "$lib" -verify_arch "$ARCH"
 done
 if [[ "$INSTALL" == 1 ]]; then
     # Elevation is only needed when copying into /Applications.
     sudo cmake --install "$BUILD" --config "$CONFIG"
 fi
-printf '\nBuilt: %s/AlphaFix.plugin\n' "$BUILD"
+printf '\nBuilt: %s/Alpha Fix.plugin\n' "$BUILD"

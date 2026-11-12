@@ -1,4 +1,5 @@
 #include "AEConfig.h"
+#include "AlphaFixVersion.h"
 #include "AE_EffectVers.h"
 
 #ifndef AE_OS_WIN
@@ -11,10 +12,10 @@ resource 'PiPL' (16000) {
             AEEffect
         },
         Name {
-            "Alpha Fix"
+            ALPHAFIX_NAME
         },
         Category {
-            "Channel"
+            ALPHAFIX_CATEGORY
         },
 
 #ifdef AE_OS_WIN
@@ -38,7 +39,7 @@ resource 'PiPL' (16000) {
             PF_PLUG_IN_SUBVERS
         },
         AE_Effect_Version {
-            0x00080001
+            ALPHAFIX_PIPL_VERSION
         },
         AE_Effect_Info_Flags {
             0
@@ -50,7 +51,7 @@ resource 'PiPL' (16000) {
             0x08001400
         },
         AE_Effect_Match_Name {
-            "ADBE AlphaFix"
+            ALPHAFIX_MATCH_NAME
         },
         AE_Reserved_Info {
             0

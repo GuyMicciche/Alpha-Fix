@@ -1,6 +1,6 @@
-# AlphaFix — After Effects ProRes 4444 Alpha Repair Plugin
+# Alpha Fix — After Effects ProRes 4444 Alpha Repair Plugin
 
-![GitHub Release](https://img.shields.io/github/v/release/GuyMicciche/AlphaFix?style=for-the-badge)
+![GitHub Release](https://img.shields.io/github/v/release/GuyMicciche/Alpha-Fix?style=for-the-badge)
 
 ![Black-Car-01](https://github.com/user-attachments/assets/54c993b8-560a-4f39-ac43-ea99a82401c2)
 
@@ -12,7 +12,7 @@ This is an Adobe-side decoder bug. The "Interpret Footage > Alpha" settings do n
 
 ## The Solution
 
-AlphaFix is a SmartFX effect plugin that:
+Alpha Fix is a SmartFX effect plugin that:
 
 1. Reads the original `.mov` file directly using FFmpeg's libraries
 2. Decodes the correct alpha channel per-frame
@@ -22,7 +22,7 @@ AlphaFix is a SmartFX effect plugin that:
 ## Usage
 
 1. Import your ProRes 4444 (`-alpha_bits 8`) footage into After Effects as usual
-2. Apply **Effect > Channel > AlphaFix** to the layer
+2. Apply **Effect > Channel > Alpha Fix** to the layer
 3. The plugin automatically detects the layer's source file and repairs the alpha
 
 ### Parameters
@@ -99,7 +99,7 @@ You need at minimum: `avformat`, `avcodec`, `avutil`, `swscale`.
 `C:/Program Files/Adobe` by default. Run as Administrator for installation.
 Set `AE_BASE_DIR` to choose another AE application directory. Build failures stop
 the script before install. Use `buildwin.bat --no-install --no-pause` for CI or
-packaging only. The staged folder is `Release/Support Files/Plug-ins/AlphaFix`.
+packaging only. The staged folder is `Release-Alpha-Fix/Support Files/Plug-ins/Alpha Fix`.
 The script discovers any Visual Studio 2022 edition with the C++ tools installed.
 
 
@@ -130,7 +130,7 @@ bash buildmac.sh
 
 The script extracts the tracked AE SDK archive if necessary, builds FFmpeg 8.1
 on the first run, bundles its dylibs, signs the bundle ad hoc, and installs into
-the newest stable `/Applications/Adobe After Effects */Plug-ins/AlphaFix` folder.
+the newest stable `/Applications/Adobe After Effects */Plug-ins/Alpha Fix` folder.
 It asks for sudo when installing. Close AE first and restart it after installation.
 The default architecture is the current Mac's architecture. macOS 12+ is targeted;
 the installed After Effects version may require a newer OS.
@@ -142,7 +142,7 @@ bash buildmac.sh --arch x86_64          # Intel
 AE_BASE_DIR="/Applications/Adobe After Effects 2026" bash buildmac.sh
 ```
 
-Output: `Mac/<architecture>-Release/AlphaFix.plugin`. FFmpeg is inside
+Output: `Mac/<architecture>-Release/Alpha Fix.plugin`. FFmpeg is inside
 `Contents/Frameworks`; Homebrew is not required at runtime. Only ProRes decoding,
 MOV demuxing, file input, and required conversion libraries are enabled in this
 Mac FFmpeg build. It is intentionally smaller than the Windows full FFmpeg build.
@@ -158,7 +158,7 @@ builds may be blocked by macOS quarantine; for a trusted download, remove quaran
 from the extracted bundle before installation:
 
 ```bash
-xattr -dr com.apple.quarantine /path/to/AlphaFix.plugin
+xattr -dr com.apple.quarantine "/path/to/Alpha Fix.plugin"
 ```
 
 ### Automatic GitHub releases
@@ -181,13 +181,13 @@ publish a partial release. Re-running a tag workflow replaces that tag's assets.
 Mac FFmpeg builds are cached separately per architecture. A manual Actions run
 on a branch builds downloadable workflow artifacts without publishing a release.
 
-To install a release, close AE, extract the ZIP, then copy Windows's `AlphaFix`
-folder from `Support Files/Plug-ins/` or Mac's `AlphaFix.plugin` bundle into AE's
+To install a release, close AE, extract the ZIP, then copy Windows's `Alpha Fix`
+folder from `Support Files/Plug-ins/` or Mac's `Alpha Fix.plugin` bundle into AE's
 own `Plug-ins` folder. Choose the Mac ZIP matching the architecture AE runs under
 (Intel for an AE process running under Rosetta). FFmpeg is included in each package.
 
 The release tag sets CMake/package and Mac bundle versions. The existing AE effect
-version in `AlphaFix.h` / `AlphaFix_PiPL.r` stays independent; update both together
+version comes from `src/AlphaFixVersion.h`; tag and product version must agree
 when changing the effect's own version metadata.
 
 ### PiPL Resource Note (Windows)
@@ -199,7 +199,7 @@ The PiPL resource (`AlphaFix_PiPL.r`) is compiled automatically by the CMake bui
 ## Architecture
 
 ```
-AlphaFix/
+Alpha Fix/
 ├── CMakeLists.txt          # Build configuration
 ├── buildwin.bat            # Windows convenience build script
 ├── README.md               # This file
@@ -247,3 +247,12 @@ MIT
 ## Author
 
 Guy Micciche
+
+## Updating to 1.0.6
+
+The effect is named **Alpha Fix** in Effect > Channel and Effect Controls.
+Remove the previous `AlphaFix.aex` / `AlphaFix.plugin` installation before installing
+`Alpha Fix.aex` / `Alpha Fix.plugin`, so AE loads one copy. Existing projects keep
+working through the unchanged internal match name. The About box now includes the
+full release version, Guy's Dojo copyright and description in the standard AE format.
+The source folder and CMake target remain AlphaFix.

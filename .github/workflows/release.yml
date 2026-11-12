@@ -42,7 +42,7 @@ jobs:
             [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Use a vMAJOR.MINOR.PATCH tag'; exit 1; }
             echo "ALPHAFIX_VERSION=${REF_NAME#v}" >> "$GITHUB_ENV"
           else
-            echo 'ALPHAFIX_VERSION=1.0.0' >> "$GITHUB_ENV"
+            echo "ALPHAFIX_VERSION=$(python scripts/version.py)" >> "$GITHUB_ENV"
           fi
       - name: Extract After Effects SDK
         run: python scripts/extract-dependency.py AfterEffectsSDK/AfterEffectsSDK.zip AfterEffectsSDK Headers/AE_Effect.h
@@ -77,10 +77,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item README.md 'Release/README.md'
-          Copy-Item ffmpeg-shared/LICENSE 'Release/FFmpeg-LICENSE.txt'
-          Copy-Item ffmpeg-shared/README.txt 'Release/FFmpeg-README.txt'
-          Compress-Archive -Path Release/* -DestinationPath "dist/AlphaFix-v$env:ALPHAFIX_VERSION-windows-x64.zip"
+          Copy-Item README.md 'Release-Alpha-Fix/README.md'
+          Copy-Item ffmpeg-shared/LICENSE 'Release-Alpha-Fix/FFmpeg-LICENSE.txt'
+          Copy-Item ffmpeg-shared/README.txt 'Release-Alpha-Fix/FFmpeg-README.txt'
+          Compress-Archive -Path Release-Alpha-Fix/* -DestinationPath "dist/Alpha-Fix-v$env:ALPHAFIX_VERSION-windows-x64.zip"
       - name: Package Mac
         if: runner.os == 'macOS'
         shell: bash
@@ -88,12 +88,12 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           mkdir -p dist Mac/package
-          ditto "Mac/$ARCH-Release/AlphaFix.plugin" Mac/package/AlphaFix.plugin
+          ditto "Mac/$ARCH-Release/Alpha Fix.plugin" "Mac/package/Alpha Fix.plugin"
           cp README.md Mac/package/
-          ditto -c -k --keepParent Mac/package "dist/AlphaFix-v$ALPHAFIX_VERSION-macos-$ARCH.zip"
+          ditto -c -k --keepParent Mac/package "dist/Alpha-Fix-v$ALPHAFIX_VERSION-macos-$ARCH.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: AlphaFix-${{ matrix.platform }}
+          name: Alpha-Fix-${{ matrix.platform }}
           path: dist/*.zip
           if-no-files-found: error
 
@@ -107,7 +107,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: AlphaFix-*
+          pattern: Alpha-Fix-*
           merge-multiple: true
           path: dist
       - name: Publish release after every platform succeeds
@@ -120,7 +120,7 @@ jobs:
           cd dist
           sha256sum *.zip > SHA256SUMS.txt
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --verify-tag --title "AlphaFix $TAG" --generate-notes --draft
+            gh release create "$TAG" --verify-tag --title "Alpha Fix $TAG" --generate-notes --draft
           fi
           gh release upload "$TAG" ./*.zip SHA256SUMS.txt --clobber
           gh release edit "$TAG" --draft=false

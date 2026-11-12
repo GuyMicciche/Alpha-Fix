@@ -13,7 +13,7 @@ goto args
 :setup
 if not defined AE_SDK_PATH set "AE_SDK_PATH=%ROOT%AfterEffectsSDK"
 if not defined FFMPEG_PATH set "FFMPEG_PATH=%ROOT%ffmpeg-shared"
-if not defined ALPHAFIX_VERSION set "ALPHAFIX_VERSION=1.0.0"
+if not defined ALPHAFIX_VERSION for /f %%V in ('python "%ROOT%scripts\version.py"') do set "ALPHAFIX_VERSION=%%V"
 REM Use the active developer environment, or discover any VS 2022 edition.
 if defined VSCMD_VER goto configure
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -39,10 +39,10 @@ if "%DO_INSTALL%"=="0" goto done
 cmake --install Win --config Release
 if errorlevel 1 goto failed
 :done
-echo AlphaFix build complete. Package folder: %ROOT%Release
+echo Alpha Fix build complete. Package folder: %ROOT%Release-Alpha-Fix
 if "%DO_PAUSE%"=="1" pause
 exit /b 0
 :failed
-echo AlphaFix build or install failed. See the error above.
+echo Alpha Fix build or install failed. See the error above.
 if "%DO_PAUSE%"=="1" pause
 exit /b 1

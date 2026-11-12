@@ -2,7 +2,7 @@
 ; Forces export of entry point symbols without C++ name mangling.
 ; AE looks for these exact undecorated names in the .aex DLL.
 
-LIBRARY "AlphaFix"
+LIBRARY "Alpha Fix"
 
 EXPORTS
     EffectMain

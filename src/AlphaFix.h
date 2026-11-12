@@ -23,12 +23,7 @@
     #define ALPHAFIX_API __attribute__((visibility("default")))
 #endif
 
-#define ALPHAFIX_NAME           "Alpha Fix"
-#define ALPHAFIX_MATCH_NAME     "ADBE AlphaFix"
-#define ALPHAFIX_MAJOR_VERSION  1
-#define ALPHAFIX_MINOR_VERSION  0
-#define ALPHAFIX_BUG_VERSION    0
-#define ALPHAFIX_BUILD_VERSION  1
+#include "AlphaFixVersion.h"
 
 enum {
     ALPHAFIX_INPUT = 0,
@@ -70,7 +65,7 @@ struct AlphaFixInstanceData {
     void*       ffmpegContext;
 };
 
-// ── FFmpeg loading ───────────────────────────────────────────────────────────
+// â”€â”€ FFmpeg loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // AlphaFix_EnsureFFmpegLoaded is thread-safe and runs its work exactly once,
 // no matter how many threads call it. It installs delay-load hooks and then
 // explicitly loads every DLL found in the alphafix.ffmpeg sidecar folder by

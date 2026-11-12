@@ -31,7 +31,7 @@ def main():
             libs[name] = dest
     if not libs:
         raise RuntimeError('No FFmpeg dylibs found')
-    executable = bundle / 'Contents/MacOS/AlphaFix'
+    executable = bundle / 'Contents/MacOS/Alpha Fix'
     for binary in [*libs.values(), executable]:
         changes = []
         # otool -L's first line is the filename; remaining lines are dependencies.
