@@ -7,3 +7,7 @@ third_party/
 dist/
 __pycache__/
 AlphaFix_src_*.zip
+
+# Product-branded local packaging outputs
+Release-Alpha-Fix/
+Alpha-Fix_v*.zip
