@@ -92,11 +92,11 @@ packaging only. The staged folder is `Release-Alpha-Fix/<version>/Alpha Fix`.
 The script discovers any Visual Studio 2022 edition with the C++ tools installed.
 
 
-Once both dependencies are extracted, run `buildwin.bat` **as Administrator** from the project root, or build manually using `x64 Native Tools Command Prompt for VS 2022` **Run as Administrator**:
+Run `buildwin.bat --no-install --no-pause` to build and package without elevation. The script builds minimal FFmpeg when missing. For a manual configure after that dependency build, use an x64 VS 2022 developer prompt:
 
 ```bat
 set AE_SDK=AfterEffectsSDK
-set FFMPEG=ffmpeg-shared
+set FFMPEG=third_party\ffmpeg-win-minimal
 
 cmake -B build -S . -G "Visual Studio 17 2022" -A x64 ^
     -DAE_SDK_PATH="%AE_SDK%" ^
@@ -153,8 +153,9 @@ xattr -dr com.apple.quarantine "/path/to/Alpha_Fix.plugin"
 ### Automatic GitHub releases
 
 Commit and push the source changes, including `.github/workflows/release.yml`.
-The existing tracked archives `AfterEffectsSDK/AfterEffectsSDK.zip` and
-`ffmpeg-shared/ffmpeg-8.1-full_build-shared.7z` must remain available to checkout.
+The tracked `AfterEffectsSDK/AfterEffectsSDK.zip` must remain available to checkout.
+Windows and Mac CI build and cache minimal FFmpeg from source; the full Windows
+FFmpeg archive is not used.
 GitHub Actions must be enabled with permission for workflows to create releases.
 No custom tokens or Mac hardware are needed.
 
@@ -171,7 +172,7 @@ Mac FFmpeg builds are cached separately per architecture. A manual Actions run
 on a branch builds downloadable workflow artifacts without publishing a release.
 
 To install a release, close AE, extract the ZIP, then copy Windows's `Alpha Fix`
-folder from `Support Files/Plug-ins/` or Mac's `Alpha_Fix.plugin` bundle into AE's
+folder at the ZIP root or Mac's `Alpha_Fix.plugin` bundle inside that folder into AE's
 own `Plug-ins` folder. Choose the Mac ZIP matching the architecture AE runs under
 (Intel for an AE process running under Rosetta). FFmpeg is included in each package.
 
@@ -237,10 +238,10 @@ MIT
 
 Guy Micciche
 
-## Updating to 1.0.6
+## Updating from older releases
 
 The effect is named **Alpha Fix** in Effect > Channel and Effect Controls.
-Remove the previous `AlphaFix.aex` / `AlphaFix.plugin` installation before installing
+Remove previous `AlphaFix.aex`, `Alpha Fix.aex` or matching Mac bundle installations before installing
 `Alpha_Fix.aex` / `Alpha_Fix.plugin`, so AE loads one copy. Existing projects keep
 working through the unchanged internal match name. The About box now includes the
 full release version, Guy's Dojo copyright and description in the standard AE format.
